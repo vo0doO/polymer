@@ -215,7 +215,7 @@ is false, `selected` is a property representing the last selected item.  When
     },
 
     // TODO(sjmiles): experimental, does not support 'multi'
-    selectedChanged: function(selected) {
+    _selectedChanged: function(selected) {
       if (selected !== this._internallySelected) {
         this.select(selected);
       }
