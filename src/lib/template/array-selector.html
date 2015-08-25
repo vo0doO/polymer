@@ -95,7 +95,8 @@ is false, `selected` is a property representing the last selected item.  When
        */
       selected: {
         type: Object,
-        notify: true
+        notify: true,
+        observer: '_selectedChanged'
       },
 
       /**
@@ -204,11 +205,19 @@ is false, `selected` is a property representing the last selected item.  When
         if (this.toggle && item == this.selected) {
           this.deselect();
         } else {
+          this._internallySelected = item;
           this.selected = item;
           this.selectedItem = item;
           this.linkPaths('selected', 'items.' + key);
           this.linkPaths('selectedItem', 'items.' + key);
         }
+      }
+    },
+
+    // TODO(sjmiles): experimental, does not support 'multi'
+    selectedChanged: function(selected) {
+      if (selected !== this._internallySelected) {
+        this.select(selected);
       }
     }
 
