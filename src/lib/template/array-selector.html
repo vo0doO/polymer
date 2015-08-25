@@ -139,7 +139,7 @@ is false, `selected` is a property representing the last selected item.  When
           this._selectedColl = Polymer.Collection.get(this.selected);
         }
       } else {
-        this.selected = null;
+        this._setSelected(null);
         this._selectedColl = null;
       }
       this.selectedItem = null;
@@ -174,7 +174,7 @@ is false, `selected` is a property representing the last selected item.  When
           this.unlinkPaths('selected.' + skey);
         }
       } else {
-        this.selected = null;
+        this._setSelected(null);
         this.selectedItem = null;
         this.unlinkPaths('selected');
         this.unlinkPaths('selectedItem');
@@ -205,8 +205,7 @@ is false, `selected` is a property representing the last selected item.  When
         if (this.toggle && item == this.selected) {
           this.deselect();
         } else {
-          this._internallySelected = item;
-          this.selected = item;
+          this._setSelected(item);
           this.selectedItem = item;
           this.linkPaths('selected', 'items.' + key);
           this.linkPaths('selectedItem', 'items.' + key);
@@ -215,6 +214,11 @@ is false, `selected` is a property representing the last selected item.  When
     },
 
     // TODO(sjmiles): experimental, does not support 'multi'
+    _setSelected: function(item) {
+      this._internallySelected = item;
+      this.selected = item;
+    },
+
     _selectedChanged: function(selected) {
       if (selected !== this._internallySelected) {
         this.select(selected);
