@@ -43,9 +43,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   (function() {
 
-    var origPropertySetter = Polymer.Base._propertySetter;
-    var origObserverEffect = Polymer.Base._observerEffect;
-    var origComplexObserverEffect = Polymer.Base._complexObserverEffect;
+    // TODO(sorvell): remembering that these functions are in the Bind library
+    // was a particular source of trouble; need to factor that asap. 
+    var origPropertySetter = Polymer.Bind._modelApi._propertySetter;
+
+    Polymer.Bind._modelApi._propertySetter = function(property, value) {
+      if (this._configured) {
+        return origPropertySetter.apply(this, arguments);
+      } else {
+        this._config[property] = value;
+      }
+    };
+
+    var origObserverEffect = Polymer.Bind._observerEffect;
+    Polymer.Bind._observerEffect = function() {
+      if (this._clientsReadied) {
+        origObserverEffect.apply(this, arguments);
+      }
+    };
+
+
+    var origComplexObserverEffect = Polymer.Bind._complexObserverEffect;
+    Polymer.Bind._complexObserverEffect = function() {
+      if (this._clientsReadied) {
+        origComplexObserverEffect.apply(this, arguments);
+      }
+    };
 
     Polymer.Base._addFeature({
 
@@ -58,7 +81,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._config[i] = initialConfig[i];
           }
         }
-        this._handlers = [];
       },
 
       // static attributes are deserialized into _config
@@ -69,11 +91,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        _attributeChangedImpl: function(name) {
         var model = this._clientsReadied ? this : this._config;
         this._setAttributeToProperty(model, name);
-      },
-
-      // at configure time values are stored in _config
-      _configValue: function(name, value) {
-        this._config[name] = value;
       },
 
       // Override polymer-mini thunk
@@ -139,16 +156,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // _distributeConfig so propagation triggered by effects here is
       // redundant, but safe due to dirty checking
       _applyConfig: function(config, aboveConfig) {
-        for (var n in config) {
-          // Don't stomp on values that may have been set by other side effects
-          if (this[n] === undefined) {
-            // Call _propertySet for any properties with accessors, which will
-            // initialize read-only properties also; set quietly if value was
-            // configured from above, as opposed to default
-            this.__setProperty(n, config[n], n in aboveConfig);
-          }
-        }
         this._configured = true;
+        for (var n in config) {
+          this.__setProperty(n, config[n], n in aboveConfig);
+        }
       },
 
       _executeObservers: function() {
@@ -157,38 +168,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (var p in fx$) {
             var fx = fx$[p];
             for (var i=0, l=fx.length, x; (i<l) && (x=fx[i]); i++) {
-              var fn = this['_' + x.kind + 'Effect'];
-              if (x.kind === 'observer') {
-                var value = (p === x.effect.property) ? this[p] :
-                  this.get(x.effect.property);
-                fn.call(p, value, x);
-              } else if (x.kind == 'complexObserver') {
-                fn.call();
+              var fn = Polymer.Bind['_' + x.kind + 'Effect'];
+              var complex = (x.kind === 'complexObserver');
+              if (x.kind === 'observer' || complex) {
+                var name = complex ? x.effect.trigger.name : x.effect.property;
+                var value = (p === name) ? this[p] :
+                  this.get(name);
+                var old = this.__data__[name];
+                if (value !== undefined) {
+                  fn.call(this, p, value, x.effect, old);
+                }
               }
             }
           }
         }
-      },
-
-      _propertySetter: function(property, value) {
-        if (this._configured) {
-          origPropertySetter.apply(this, arguments);
-        } else {
-          this._config[property] = value;
-        }
-      },
-
-      _complexObserverEffect: function() {
-        if (this._clientsReadied) {
-          origObserverEffect.apply(this, arguments);
-        }
-      },
-
-      _observerEffect: function() {
-        if (this._clientsReadied) {
-          origObserverEffect.apply(this, arguments);
-        }
       }
+
     });
 
   })();
